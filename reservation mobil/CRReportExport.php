@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Exports;
+
+use Request;
+use Illuminate\Contracts\View\View;
+use Maatwebsite\Excel\Concerns\FromView;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
+
+use App\MsReservationMobil;
+use Carbon\Carbon;
+
+class CRReportExport implements FromView, WithEvents
+{
+    public function view(): View
+    {
+        if (Request::input('fromExcel') &&  Request::input('toExcel')) {
+            $dataFilter = MsReservationMobil::query();
+    
+            $fromDate = Request::input('fromExcel');
+            $toDate = Request::input('toExcel');
+    
+            if ($fromDate && $toDate) {
+                $dataFilter->whereBetween('date_from', [$fromDate, $toDate]);
+            }
+    
+            // Menambahkan kondisi where untuk status "Approved"
+            $dataFilter->where('status', 'Approved');
+    
+            $data['cars'] = $dataFilter->get();
+            $data['title'] = "Car Reservation Report from {$fromDate} to {$toDate}";
+    
+            return view('reservationcar.reportexcel', $data);
+        } else {
+            return redirect()->back();
+        }
+    }
+
+    // You can customize the AfterSheet event if needed
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class    => function(AfterSheet $event) {
+                $event->sheet->styleCells(  
+                    'A:T',
+                    [
+                        'alignment' => [
+                            'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                        ]
+                    ]
+                );
+               
+            },
+        ];
+    }
+}
